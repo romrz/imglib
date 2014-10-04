@@ -1,5 +1,5 @@
 /**
- * Implementacion las funciones de imglib
+ * Imglib implementations
  */
 
 #include <stdio.h>
@@ -7,15 +7,16 @@
 #include <stdlib.h>
 #include "imglib.h"
 
-Image *create_image(int type, int w, int h) {
+/**
+ * Creates a new image.
+ */
+Image *create_image(int type, int w, int h, char *comment) {
 
   Image *img = (Image *) malloc(sizeof(Image));
 
-  img->name = (char *) calloc(50, sizeof(char));
-  //strcpy(img->name, file);
   img->type = type;
-  img->comment = (char *) calloc(255, sizeof(char));
-  //  strcpy(img->comment, com);
+  img->comment = (char *) calloc(strlen(comment) + 1, sizeof(char));
+  strcpy(img->comment, comment);
   img->width = w;
   img->height = h;
   img->maxcolor = type == 3 || type == 2 ? 255 : 1;
@@ -29,38 +30,32 @@ Image *create_image(int type, int w, int h) {
  * Loads the image specified in file
  */
 Image *read_image(char *file) {
+  // Image data
+  Image *img = NULL;
+  int type, width, height, maxcolor;
+  char comment[255];
 
-  Image *img = (Image *) malloc(sizeof(Image));
-
-  // Establece el name de la imagen como el name de file
-  img->name = (char *) calloc(strlen(file) + 1, sizeof(char));
-  strcpy(img->name, file);
-
-  // Abre el file de la imagen
+  // Open the image file
   FILE *fp;
-  fp = fopen(img->name, "r");
-  
-  // Lee el type de imagen
-  fscanf(fp, "P%d ", &img->type);
-  
-  // Lee el comment de la imagen
-  char com[255];
-  fscanf(fp, "#%[^\n]", com);
+  fp = fopen(file, "r");
 
-  img->comment = (char *) calloc(strlen(com) + 1, sizeof(char));
-  strcpy(img->comment, com);
+  // Reads the image data
+  fscanf(fp, "P%d ", &type);
+  fscanf(fp, "#%[^\n]", comment);
+  fscanf(fp, "%d %d ", &width, &height);
+  fscanf(fp, "%d ", &maxcolor);
 
-  // Lee las dimensiones de la imagen
-  fscanf(fp, "%d %d ", &img->width, &img->height);
-  fscanf(fp, "%d ", &img->maxcolor);
+  // Creates the image
+  img = create_image(type, width, height, comment);
 
-  // Lee los pixels
+  // Reads the pixels
   int pixels = img->width * img->height;
   img->pixels = (Pixel *) calloc(pixels, sizeof(Pixel));
   
   Pixel p;
   int i;
   for(i = 0; i < pixels; i++) {
+
     if(img->type == 3)
       fscanf(fp, "%d %d %d ", &p.r, &p.g, &p.b);
     else
@@ -75,7 +70,7 @@ Image *read_image(char *file) {
 }
 
 /**
- * Saves the image in the given file
+ * Saves the image in the given file name
  */
 void save_image(Image *img, char *file) {
 
@@ -87,17 +82,18 @@ void save_image(Image *img, char *file) {
   fprintf(fp, "%d %d\n", img->width, img->height);
   fprintf(fp, "%d\n", img->maxcolor);
 
-  int pixels = img->width * img->height;
-  int i;
+  int i, pixels = img->width * img->height;
   for(i = 0; i < pixels; i++) {
+
+    /* The pixel data of images P2 and P1 is stored
+       only in pixel.r */
     if(img->type == 3)
       fprintf(fp, "%d %d %d",
-	    img->pixels[i].r,
-	    img->pixels[i].g,
-	    img->pixels[i].b);
+	    img->pixels[i].r, img->pixels[i].g, img->pixels[i].b);
     else if(img->type == 2 || img->type == 1)
       fprintf(fp, "%d", img->pixels[i].r);
 
+    // Prints a new line character when it's end of line or a space if not
     if((i + 1) % img->width == 0)
       fprintf(fp, "\n");
     else
@@ -112,14 +108,16 @@ void save_image(Image *img, char *file) {
  */
 void free_image(Image *imagen) {
 
-  free(imagen->name);
   free(imagen->comment);
   free(imagen->pixels);
   free(imagen);
 
 }
 
-int pixel_promedio(Pixel *pixel) {
+/**
+ * Obtains the average value of the RGB pixel values
+ */
+int average_pixel(Pixel *pixel) {
   return (pixel->r + pixel->g + pixel->b) / 3;
 }
 
@@ -128,16 +126,11 @@ int pixel_promedio(Pixel *pixel) {
  */
 Image *p3_to_p2(Image *imgsrc) {
   
-  Image *img = create_image(2, imgsrc->width, imgsrc->height);
+  Image *img = create_image(2, imgsrc->width, imgsrc->height, imgsrc->comment);
 
-  strcpy(img->name, imgsrc->name);
-  strcpy(img->comment, imgsrc->comment);
-
-  int pixels = img->width * img->height;
-  
-  int i;
+  int i, pixels = img->width * img->height;
   for(i = 0; i < pixels; i++)
-    img->pixels[i].r = pixel_promedio(&imgsrc->pixels[i]);
+    img->pixels[i].r = average_pixel(&imgsrc->pixels[i]);
 
   return img;
 }
@@ -147,24 +140,20 @@ Image *p3_to_p2(Image *imgsrc) {
  */
 Image *p3_to_p1(Image *imgsrc, int umbral) {
 
-  Image *img = create_image(1, imgsrc->width, imgsrc->height);
+  Image *img = create_image(1, imgsrc->width, imgsrc->height, imgsrc->comment);
 
-  strcpy(img->name, imgsrc->name);
-  strcpy(img->comment, imgsrc->comment);
-
-  int pixels = img->width * img->height;
-  
-  int i;
+  int i, pixels = img->width * img->height;
   for(i = 0; i < pixels; i++)
-    img->pixels[i].r = pixel_promedio(&imgsrc->pixels[i]) < umbral ? 1 : 0;
+    img->pixels[i].r = average_pixel(&imgsrc->pixels[i]) < umbral ? 1 : 0;
 
   return img;
 }
 
 /**
- * Gets an array with the black pixels of the image
+ * Returns an array with the black pixels of the image
  */
 int array_black_points(Image *img, Point points[]) {
+  if(img->type != 1) return 0;
 
   int pixels = img->width * img->height;
   int i, n = 0;
@@ -184,8 +173,7 @@ int array_black_points(Image *img, Point points[]) {
 
 void print_array_points(Point points[], int n) {
   int i;
-  for(i = 0; i < n; i++) {
+  for(i = 0; i < n; i++)
     printf("(%d, %d) ", points[i].x, points[i].y);
-  }
   printf("\n");
 }
