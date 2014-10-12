@@ -1,24 +1,29 @@
 /**
- * Este programa convierte una imagen ppm a una imagen vectorial
- * representada por una linea resultante de toda la imagen.
+ * This program converts an P3 image to binary and from binary to svg.
  * 
- * Recibe el nombre de imagen original,
- * el nombre de destino
- * y el umbral para convertir a binario
+ * Arguments
+ * 1. Source image
+ * 2. Threshold to convert to binary
+ * 3. Threshold to convert to svg
  */
+
 #include <stdio.h>
+#include <stdlib.h>
 #include "imglib/imglib.h"
 
-main(int nargs, char *args[]) {
+int main(int nargs, char *args[]) {
 
-  //printf("%d\n", atoi(args[3]) + 1);
+  Image *imgsrc = read_image(args[1]);
+  Image *img = p3_to_p1(imgsrc, atoi(args[2]));
 
-  Image *img = read_image(args[1]);
-  Image *imgbin = p3_to_p1(img, atoi(args[3]));
-
-  save_image(imgbin, "img_bin.ppm");
-  save_image_svg(imgbin, args[2]);
+  // Threshold
+  double t = atof(args[3]);
+  
+  save_image(img, "img_bin.ppm");
+  save_image_svg(img, "img_svg.svg", t);
 
   free_image(img);
-  free_image(imgbin);
+  free_image(imgsrc);
+
+  return 0;
 }
