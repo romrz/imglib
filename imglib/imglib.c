@@ -15,6 +15,9 @@ Image *create_image(int type, int w, int h, char *comment) {
 
   Image *img = (Image *) malloc(sizeof(Image));
 
+  if(img == NULL)
+    return NULL;
+
   img->type = type;
   img->comment = (char *) calloc(strlen(comment) + 1, sizeof(char));
   strcpy(img->comment, comment);
@@ -38,7 +41,9 @@ Image *read_image(char *file) {
 
   // Open the image file
   FILE *fp;
-  fp = fopen(file, "r");
+  
+  if((fp = fopen(file, "r")) == NULL)
+    return NULL;
 
   // Reads the image data
   fscanf(fp, "P%d ", &type);
@@ -48,9 +53,8 @@ Image *read_image(char *file) {
     fscanf(fp, "%d ", &maxcolor);
 
   // Creates the image
-  img = create_image(type, width, height, comment);
+  if((img = create_image(type, width, height, comment)) != NULL) {
 
-  if(img != NULL) {
     // Reads the pixels
     int pixels = img->width * img->height;
     img->pixels = (Pixel *) calloc(pixels, sizeof(Pixel));
@@ -94,7 +98,9 @@ Image *copy_image(Image *imgsrc) {
 void save_image(Image *img, char *file) {
 
   FILE *fp;
-  fp = fopen(file, "w");
+
+  if((fp = fopen(file, "w")) == NULL)
+    return;
 
   fprintf(fp, "P%d\n", img->type);
   fprintf(fp, "#%s\n", img->comment);
@@ -129,7 +135,9 @@ void save_image(Image *img, char *file) {
 void save_image_svg(Image *img, char *file, double t) {
 
   FILE *fp;
-  fp = fopen(file, "w");
+
+  if((fp = fopen(file, "w")) == NULL)
+    return;
 
   int max_lines = 1000;
   Line lines[max_lines];
@@ -138,6 +146,9 @@ void save_image_svg(Image *img, char *file, double t) {
   // Prints the image
   fprintf(fp,"<svg width=\"%d\" height=\"%d\">\n",img->width,img->height);
   
+  // Prints the background
+  fprintf(fp, "<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" style=\"fill:rgb(255, 255, 255)\" />\n", img->width, img->height);
+
   int i;
   for(i = 0; i < n; i++)
     fprintf(
@@ -254,7 +265,9 @@ int get_lines(Image *img, Line lines[], int max_lines, double t) {
 
   int i;
   for(i = 0; i < max_lines && p2 < num_points; i++) {
+    
     do {
+      
       line = calculate_line(points, p1, p2, &em, &eb);
       
       // If the error of the next line is greater than the threshold
@@ -265,6 +278,7 @@ int get_lines(Image *img, Line lines[], int max_lines, double t) {
 	if(fabs(aux_em) > t)
 	  break;
       }
+
     } while(fabs(em) <= t && p2++ < num_points);
 
     lines[i] = line;
@@ -347,7 +361,7 @@ Line calculate_line(Point points[], int ip, int fp, double *me, double *be) {
   int lp = find_leftmost_point(points, ip, fp);
   int rp = find_rightmost_point(points, ip, fp);
 
-  // Creates a line between the left and right points
+  // Creates a line between the leftmost and rightmost points
   Point p1 = {points[lp].x, m * points[lp].x + b};
   Point p2 = {points[rp].x, m * points[rp].x + b};
   line.p1 = p1;
